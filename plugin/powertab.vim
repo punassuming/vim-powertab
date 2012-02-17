@@ -102,38 +102,35 @@ let g:TabLineSet_bufname_filters = [
 let g:TabLineSet_tab_filters = [
         \   [ ',',       nr2char('0x2502'),   'g' ]
         \ ]
-        "\  [ '%#TabPunct\w*#,%#Tab\w*#',        ';',   'g' ]
-        " This example removes the commans and their highlighting, and
-        " replaces them with semi-colons.
+
 if 0    "  don't execute, example only
-
-
-" The folowing example replaces the leading "!" to include the current time
-" using the substitute special \= evaluation feature.  
-"
-" First, clean out any copies of our changes because the tab length
-" calculation makes multiple passes, each of which would other wise insert
-" another timestamp.
-call add( g:TabLineSet_tab_filters,     [ '%X%#DiffChange#\d\d:\d\d:\d\d',       '',    'g' ] )
-" Note also that the new current time string would inherit the color of the
-" "!" char, if it didn't include the %X%#..#  format string around the "!" .
-call add( g:TabLineSet_tab_filters,     [ '!%X%#[^#]*#',         '\=MyFunc()',  '' ] )
-function! MyFunc()
-    let s = strftime("%H:%M:%S")
-    " Since this increases the length of the tab outside of the TabLineSet
-    " functions, so incrementing the  g:TabLineSet_out_pos to account for
-    " the extra chars will help it, a little, to draw.  
-    let g:TabLineSet_out_pos += strlen(s)
-    return submatch(0) . '%X%#DiffChange#' . s
-endfunction
+    " The folowing example replaces the leading "!" to include the current time
+    " using the substitute special \= evaluation feature.  
+    "
+    " First, clean out any copies of our changes because the tab length
+    " calculation makes multiple passes, each of which would other wise insert
+    " another timestamp.
+    call add( g:TabLineSet_tab_filters,     [ '%X%#DiffChange#\d\d:\d\d:\d\d',       '',    'g' ] )
+    " Note also that the new current time string would inherit the color of the
+    " "!" char, if it didn't include the %X%#..#  format string around the "!" .
+    call add( g:TabLineSet_tab_filters,     [ '!%X%#[^#]*#',         '\=MyFunc()',  '' ] )
+    function! MyFunc()
+        let s = strftime("%H:%M:%S")
+        " Since this increases the length of the tab outside of the TabLineSet
+        " functions, so incrementing the  g:TabLineSet_out_pos to account for
+        " the extra chars will help it, a little, to draw.  
+        let g:TabLineSet_out_pos += strlen(s)
+        return submatch(0) . '%X%#DiffChange#' . s
+    endfunction
 endif   " end of don't execute
+
 " This performs substitutions at the full tabline level.  The possibility to
 " make a mess increases :-)
 "
 let g:TabLineSet_tabline_filters = [ 
-        \ ]
-        "\  [ '^',      '(-:  ' ],
-        "\  [ '$',       ' :-)' ]
+            \ ]
+"\  [ '^',      '(-:  ' ],
+"\  [ '$',       ' :-)' ]
 " This holds a copy of the final (huge!) string with all the embedded syntax
 " and or highlighting.  You can use it to help decide how you want to make
 " filters.
@@ -143,7 +140,7 @@ let g:TabLineSet_output_post = ''
 
 " Use the filler func to doddle in the ending  space in the tabline:
 "
-let g:TabLineSetFillerFunc = 'TabLineSetFillerTest'
+let g:TabLineSetFillerFunc = 'TabLineSetFillerBufferRing'
 " let g:TabLineSetFillerFunc = ''
 " This is called for each evaluation pass and can set the initial
 " value of the tabline string.
@@ -169,9 +166,6 @@ function! TabLineSet_main( ... )
     set guioptions-=e
     if !exists('s:called_hl_init')
         let s:called_hl_init = 1
-        call TabLineSet_hl_init()
-    endif
-    if synIDattr(synIDtrans(hlID("TabPunct")), "fg") == ''
         call TabLineSet_hl_init()
     endif
     " ------------------------------------------------------------
@@ -429,12 +423,12 @@ function! s:Fill_tab_labels()
             "
             "
             let tabexit = ''
-            if s:verbose =~ 'closers'
-                let tabexit .= ( is_selected ? '%#TabExitSel#' : tabexit_unselected )
-                let tabexit .= ( is_selected ? '%' . tabnr . 'X✖%X' : " ")
-                " let tabexit .= ( is_selected ? '%' . tabnr . 'X✖%X ' : '' )
-                " let tabexit .= ( is_selected ? '%#TabLineSel#' : tabline_unselected )
-            endif
+            " if s:verbose =~ 'closers'
+            let tabexit .= ( is_selected ? '%#TabExitSel#' : tabexit_unselected )
+            let tabexit .= ( is_selected ? '%' . tabnr . 'X✖%X' : " ")
+            " let tabexit .= ( is_selected ? '%' . tabnr . 'X✖%X ' : '' )
+            " let tabexit .= ( is_selected ? '%#TabLineSel#' : tabline_unselected )
+            " endif
 
             let tabsep = ''
             if tabnr == tabpagenr('$')
@@ -478,27 +472,13 @@ function! s:Fill_tab_labels()
             "           let total += strlen( r_brac . s:tabline_pieces[tabnr].misc_vals . l_brac )
             "           let total += s:verbose =~ 'closers' 
             " ------------------------------------------------------------
-            "  Handle tab wrapping:
-            "
-            if g:TabLineSet_max_wrap > 1
-                " compensate for trailing line space on wrapped tablines
-                " created by the internal wrapping [patch]
-                "
-                if ( ( g:TabLineSet_out_pos + tablabel_len + 1 ) / &columns )
-                            \ > g:TabLineSet_row 
-                    let g:TabLineSet_row += 1
-                    let g:TabLineSet_out_pos += &columns - g:TabLineSet_col
-                    let g:TabLineSet_idxs .= 
-                                \ repeat( ' ', &columns - g:TabLineSet_col )
-                    let g:TabLineSet_col = 0
-                endif
-            endif
+
             let s = substitute( tablabel, '%#[^#]*#', '', 'g' )
             let s = substitute( s, '%\d*[=XT]', '', 'g' )
-            let tablabel_len = strlen( s )
+            let tablabel_len = strchars( s )
             let s:tablabel_len = tablabel_len
             let g:TabLineSet_col += tablabel_len
-            let g:TabLineSet_out_pos += tablabel_len - 2
+            let g:TabLineSet_out_pos += tablabel_len
             let g:TabLineSet_idxs .= repeat( tabnr, tablabel_len )
             let g:TabLineSet_tablabels[ tabnr ] = tablabel
         endfor " for tabnr in tabnrs
@@ -512,12 +492,13 @@ function! s:Fill_tab_labels()
         "
         " after the last tab fill with TabLineFill and reset tab page nr
         let last_close = ''
-            let tabline_out .= '%#TabLineFillEnd#'
-            "let last_close = repeat(' ', &columns - g:TabLineSet_col )
-            if tabpagenr('$') > 1 && s:verbose == ''
-                let last_close .= '%=%#TabLine#%999X!X%X%##'
-            endif
-            let g:TabLineSet_out_pos += 1
+
+        let tabline_out .= '%#TabLineFillEnd#'
+        "let last_close = repeat(' ', &columns - g:TabLineSet_col )
+
+
+        let g:TabLineSet_out_pos += 1
+
         if exists('&mousefunc')            
             " tabline called from in mousefunc? && &mousefunc != ''
             if g:TabLineSet_max_wrap > 1
@@ -528,16 +509,21 @@ function! s:Fill_tab_labels()
             " let g:TabLineSet_out_pos += strlen( s )
             let last_close .= s
         endif
+
         let a = ( usable_columns - 0 ) 
                     \ - g:TabLineSet_out_pos 
-                    \ - ( last_close == '' ? 2 : 0 )
+
         " TODO Fix filler functions
 
-        if g:TabLineSetFillerFunc != '' && s:verbose =~ 'filler_func'
-        let tabline_out .= '%{' . g:TabLineSetFillerFunc . '(' . a . ')}'
+        if g:TabLineSetFillerFunc != '' 
+            exec "let tabline_out .= ".g:TabLineSetFillerFunc.'(' . a . ")"
         endif
 
-        let tabline_out .= last_close
+        " don't need this with individual closers
+        " if tabpagenr('$') > 1 && s:verbose == ''
+        "     let last_close .= '%=%#TabLine#%999X!X%X%##'
+        " endif
+        " let tabline_out .= last_close
 
         let g:TabLineSet_output_pre = tabline_out
         for elem in g:TabLineSet_tabline_filters 
@@ -551,7 +537,7 @@ function! s:Fill_tab_labels()
         endif
         let s = substitute( tabline_out, '%#[^#]*#', '', 'g' )
         let s = substitute( s, '%\d*[=XT]', '', 'g' )
-        let s:overflow = strlen( s ) - s:avail 
+        let s:overflow = strchars( s ) - s:avail 
         "echomsg 's:' . s
         "echomsg 'avail:' . s:avail . ', overflow end ' . s:overflow
         "echomsg 's len:' . strlen(s)
@@ -585,9 +571,6 @@ function! s:Fill_tab_labels()
             "           call s:Fill_bufnames()
         endif
     endwhile " big loop
-    if v:lnum > 0
-        return g:TabLineSet_tablabels[ v:lnum ]
-    endif
     return tabline_out
 endfunction
 
@@ -739,8 +722,6 @@ function! Tst_postproc_modified( tabline )
         echomsg 'bufnr#' . bufnr . ', ' . bufname( bufnr ) . ' is now ' . ( modded ? '' : 'no' ) . 'modified'
     endfor
 
-    " call somefunction( updated )
-
 endfunction
         
 
@@ -749,13 +730,7 @@ endfunction
 "
 " 
 
-function! TabLineSetFillerNull( avail )
-    return ''
-endfunction
-
-let s:test_count = 0
-function! TabLineSetFillerTest( avail )
-    " let out = strftime( '%H:%M:%S' ) . '#' . s:test_count
+function! TabLineSetFillerBufferRing( avail )
     let bufs = {}
     for i in range(bufnr('$'))
         if bufwinnr(i+1) < 0 && buflisted(i+1)
@@ -768,20 +743,25 @@ function! TabLineSetFillerTest( avail )
     let bufname_full = ''
     let curbuf = bufnr('%')
     let altbuf = bufnr('#')
+
     if len(bufs) > 0
+
         for bufnr in  keys( bufs )
             let bufname = bufs[ bufnr]
-            let bufname = (bufname=='') ? '[]' : bufname
+            let bufname = (bufname=='') ? '.' : bufname
             let bufno = (bufnr==altbuf) ? '#' : bufnr
-            let bufname = bufno . ':' . fnamemodify( bufname, ':t' )
+            let bufname = ' ' . fnamemodify( bufname, ':t' ) . ' ' 
+            " let bufname = bufno . '|' . fnamemodify( bufname, ':t' ) . ' ' 
             if bufnr > curbuf
                 call add(bufafter, bufname)
             else
                 call add(bufbefore, bufname)
             endif
         endfor
+
         let buf_ring = bufafter + bufbefore
-        let bufname_full = join(buf_ring,'|') . '  '
+
+        let bufname_full = join(buf_ring,nr2char('0x2B83'))
     endif
 
     if has("win32") || has("win64")
@@ -791,62 +771,32 @@ function! TabLineSetFillerTest( avail )
     endif
 
     let comp_name = '(' . comp_name . ')'
-    let out = bufname_full 
-    ". strftime( '%H:%M' ) . ' B:' . bufnr('$') . ' T:' . tabpagenr('$')
-    if strlen( out ) > a:avail
-        let out = ''
-    else
-        while strlen( out ) <= a:avail
-            let out = ' '. out
-        endwhile
-    endif
+
+    let out =  '%#TabSepLast4#'.nr2char('0x2B82') . '%#TabLine4#'. bufname_full
+
+    let outlen = strchars(substitute(copy(out),'%#\S\+#','','g'))
+
+
+    let working_dir = substitute(fnamemodify(getcwd(),':p'), fnamemodify(getcwd(),':p:h:h:h'), '', 'g')
+
+    let end =  '%#TabSep3#' . nr2char('0x2B82') . '%#TabLine3#' . ' '. working_dir . ' ' . nr2char('0x2551') . ' '. strftime( '%H:%M' ) . ' '
+
+    let endlen = strchars(substitute(end,'%#\S\+#','','g')) + 1
+    " . ' B:' . bufnr('$') . ' T:' . tabpagenr('$') . comp_name
+
+    while outlen + endlen > a:avail
+        let out = strpart(out,0,strlen(out)-1)
+        let outlen = strchars(substitute(copy(out),'%#\S\+#','','g'))
+    endwhile    
+
+    let outlen = strchars(substitute(copy(out),'%#\S\+#','','g'))
+    let out = repeat(' ', a:avail-outlen-endlen) . out
+
+    let out .= end
+
     return out
 endfunction
 
-let s:TabLineSet_verbose_save = ''
-
-function! TabLineSet_verbose_toggle()
-    call TabLineSet_hl_init()
-    call TabLineSet_verbose_toggle0()
-    call s:Force_tabline_update()
-endfunction
-
-" Have it split up to use this internally, when a "1 new" will fail in the
-" sandbox.
-function! TabLineSet_verbose_toggle0()
-    if s:TabLineSet_verbose_save == ''
-        let s:TabLineSet_verbose_save = g:TabLineSet_verbose
-        let g:TabLineSet_verbose = ''
-    else
-        let g:TabLineSet_verbose = s:TabLineSet_verbose_save
-        let s:TabLineSet_verbose_save = ''
-    endif
-
-endfunction
-
-function! s:Force_tabline_update()
-    " Make it update:
-    1new
-    quit
-endfunction
-
-let s:all_verbose_sets_idx = 0
-
-function! TabLineSet_verbose_rotate()
-    call TabLineSet_hl_init()
-    let s:all_verbose_sets_idx = s:all_verbose_sets_idx + 1
-    if s:all_verbose_sets_idx > len( g:TabLineSet_verbose_sets ) - 1
-        let s:all_verbose_sets_idx = 0
-    endif
-
-    let g:TabLineSet_verbose = join( 
-                \g:TabLineSet_verbose_sets[ s:all_verbose_sets_idx ], ',' )
-    "silent! normal! gtgT
-    echomsg 'Tabline options: ' . g:TabLineSet_verbose
-    call s:Fill_tab_labels()
-    1new
-    quit
-endfunction
 
 " End Misc functions  }}}
 
@@ -855,53 +805,17 @@ endfunction
 "
 " 
 
-set tabline=%!TabLineSet_main()
 
 if &showtabline < 1
-    set showtabline=1   " 2=always
+    set showtabline=2   " 2=always
 endif
 
 function! TabLineSet_hl_init()
-    "                           *cterm-colors*
-    "       NR-16   NR-8    COLOR NAME ~
-    "       0       0       Black
-    "       1       4       DarkBlue
-    "       2       2       DarkGreen
-    "       3       6       DarkCyan
-    "       4       1       DarkRed
-    "       5       5       DarkMagenta
-    "       6       3       Brown, DarkYellow
-    "       7       7       LightGray, LightGrey, Gray, Grey
-    "       8       0*      DarkGray, DarkGrey
-    "       9       4*      Blue, LightBlue
-    "       10      2*      Green, LightGreen
-    "       11      6*      Cyan, LightCyan
-    "       12      1*      Red, LightRed
-    "       13      5*      Magenta, LightMagenta
-    "       14      3*      Yellow, LightYellow
-    "       15      7*      White
     "
-    "   The number under "NR-16" is used for 16-color terminals ('t_Co'
-        " au CmdWinEnter * hi StatusLine ctermfg=244 guifg=#A6E22E guibg=#080808
-        " au CmdWinLeave * hi StatusLine ctermfg=130 guifg=#CD5907 guibg=#FFFFFF
-
-        " au InsertEnter * call InsertStatuslineColor(v:insertmode)
-        " au InsertEnter * hi StatusLine ctermfg=161 guifg=#D53873 
-        " au InsertLeave * hi StatusLine ctermfg=130 guifg=#CD5907
-
-        " au WinEnter * hi WarningMsg guibg=#CD5907 guifg=#FFFFFF
-        " au WinLeave * hi WarningMsg guibg=#808080 guifg=#080808
-        
     hi! TabWinNum term=bold,None  gui=bold,None
                 \  guifg=black  guibg=DarkGrey
 
     hi! TabWinNumSel term=bold,None  gui=bold,None
-                \   guifg=white guibg=#CD5907
-
-    hi! TabPunct term=bold,None  gui=bold,None
-                \  guifg=black  guibg=DarkGrey
-
-    hi! TabPunctSel term=None  gui=None
                 \   guifg=white guibg=#CD5907
 
     hi! TabLineFill term=None  gui=None
@@ -954,8 +868,6 @@ function! TabLineSet_hl_init()
                 \'grey10',
                 \'grey20',
                 \'grey20',
-                \'grey50',
-                \'grey60',
                 \'grey70',
                 \'grey80',
                 \'grey90',
@@ -988,10 +900,11 @@ function! TabLineSet_hl_init()
 endfunction
 
 call TabLineSet_hl_init()
+set tabline=%!TabLineSet_main()
 
 augroup au_tablimit
 	au!
-    au TabEnter * if tabpagenr('$') > 8 | :close | :echoerr "Too many tabs open" | endif 
+    au TabEnter * if tabpagenr('$') > 8 | :silent close | endif 
 augroup END
 
 " End highlighting   }}}
