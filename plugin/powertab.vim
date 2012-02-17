@@ -105,9 +105,6 @@ let g:TabLineSet_tab_filters = [
         "\  [ '%#TabPunct\w*#,%#Tab\w*#',        ';',   'g' ]
         " This example removes the commans and their highlighting, and
         " replaces them with semi-colons.
-if &guioptions =~ 'e'
-    call add( g:TabLineSet_tab_filters, [ '[,;]',        ' & ', 'g' ] )
-endif
 if 0    "  don't execute, example only
 
 
@@ -169,16 +166,13 @@ let s:tabline_pieces = {}
 let g:TabLineSet_tablabels = {}
 
 function! TabLineSet_main( ... )
-    let s:is_gui = &guioptions =~ 'e'
+    set guioptions-=e
     if !exists('s:called_hl_init')
         let s:called_hl_init = 1
         call TabLineSet_hl_init()
     endif
     if synIDattr(synIDtrans(hlID("TabPunct")), "fg") == ''
         call TabLineSet_hl_init()
-    endif
-    if s:is_gui && v:lnum > 1
-        return g:TabLineSet_tablabels[ v:lnum ]
     endif
     " ------------------------------------------------------------
     " Don't recalc unless something has changed:
@@ -192,48 +186,29 @@ function! TabLineSet_main( ... )
             endif
             let t[bufnr] = {}
             let t[bufnr].tabnr = tabnr
-            if s:is_gui
-                " winnr isn't stabile with GUI tabs
-                "let t[bufnr].winnr = tabpagewinnr( bufwinnr( bufnr ) )
-            else
-                let t[bufnr].winnr = tabpagewinnr( bufwinnr( bufnr ) )
-            endif
+            let t[bufnr].winnr = tabpagewinnr( bufwinnr( bufnr ) )
             " Seems to need bufname as well as bufnr in some cases:
             "
             let t[bufnr].bufname = bufname( bufnr )
             let t[bufnr].modified = getbufvar( bufnr, '&modified' )
-            if s:is_gui
-                let t[bufnr].curr_window = s:bufenter_winnr
-            else
-                let t[bufnr].curr_window = 
+            let t[bufnr].curr_window = 
                         \( tabpagenr() && winnr() == tabpagewinnr( tabnr ) )
-            endif
         endfor
     endfor
-    if s:is_gui
-        let t.curr_tabnr = s:bufenter_tabnr
-    else
-        let t.curr_tabnr = tabpagenr()
-    endif
-    let t.is_gui = s:is_gui
+    let t.curr_tabnr = tabpagenr()
     let t.wrap = g:TabLineSet_max_wrap
     let t.max_cols = g:TabLineSet_max_cols
     let t.max_tab_len = g:TabLineSet_max_tab_len
     let t.verbose = g:TabLineSet_verbose
     let t.columns = &columns
     " for key in keys(t)
-      " if t[key] != g:TabLineSet_tab_status[key]
-          " echomsg 'diff ' . key . ' = ' . string( t[key] ) . ' != ' . string( g:TabLineSet_tab_status[key] )
-      " endif
+    " if t[key] != g:TabLineSet_tab_status[key]
+    " echomsg 'diff ' . key . ' = ' . string( t[key] ) . ' != ' . string( g:TabLineSet_tab_status[key] )
+    " endif
     " endfor
     if t == g:TabLineSet_tab_status
-    \ && g:TabLineSet_output_post != ''
-        if s:is_gui 
-            "echomsg 'return '.g:TabLineSet_tablabels[ v:lnum ]
-            return g:TabLineSet_tablabels[ v:lnum ]
-        else
-            return g:TabLineSet_output_post
-        endif
+                \ && g:TabLineSet_output_post != ''
+        return g:TabLineSet_output_post
     endif
     let g:TabLineSet_tab_status = deepcopy(t)
     "
@@ -292,11 +267,7 @@ function! s:Fill_tab_labels()
         " 
         for tabnr in tabnrs
             let s:tabline_pieces[tabnr] = {}
-            if s:is_gui
-                let is_selected = ( tabnr == s:bufenter_tabnr ) 
-            else
-                let is_selected = ( tabnr == tabpagenr() ) 
-            endif
+            let is_selected = ( tabnr == tabpagenr() ) 
             let bufnr_list = tabpagebuflist( tabnr )
             let tab_curr_winnr = tabpagewinnr( tabnr )
             let numwins = tabpagewinnr( tabnr, ("$") )
@@ -307,7 +278,7 @@ function! s:Fill_tab_labels()
             exec "let tabexit_unselected = '%#TabExit".tabnr."#'"
             exec "let tabmod_unselected = '%#TabMod".tabnr."#'"
 
-                let tablabel .= is_selected ? '%#TabLineSel#' : tabline_unselected
+            let tablabel .= is_selected ? '%#TabLineSel#' : tabline_unselected
             " ------------------------------------------------------------
             " Misc values
             "
@@ -326,11 +297,7 @@ function! s:Fill_tab_labels()
             endif
             let bufnr_out = ''
             if s:verbose =~ 'bufnr' && is_selected
-                if s:is_gui
-                    let bufnr_out .= 'b' . s:bufenter_bufnr
-                else
-                    let bufnr_out .= 'b' . winbufnr( tab_curr_winnr )
-                endif
+                let bufnr_out .= 'b' . winbufnr( tab_curr_winnr )
             endif
             if s:tabline_pieces[tabnr].misc_vals != ''
                 let r_brac = ''
@@ -358,12 +325,8 @@ function! s:Fill_tab_labels()
             "               let winnr_start = tab_curr_winnr
             "               let winnr_stop = tab_curr_winnr
             "           endif
-            if s:is_gui
-                let s:tabline_pieces[tabnr].curr_bufnr = s:bufenter_bufnr
-            else
-                let s:tabline_pieces[tabnr].curr_bufnr =
-                            \ bufnr_list[ tab_curr_winnr - 1 ]
-            endif
+            let s:tabline_pieces[tabnr].curr_bufnr =
+                        \ bufnr_list[ tab_curr_winnr - 1 ]
             if s:verbose =~ 'buffers_list'
                 let s:tabline_pieces[tabnr].bufnr_list = bufnr_list
             else
@@ -406,18 +369,18 @@ function! s:Fill_tab_labels()
                         let out_bufname = 
                                     \ '%#TabWinSel#'. out_bufname 
                                     \ . '%#TabLineSel#'
-                                    " \ ','.'%#TabWinSelLeft#'. nr2char('0x2B82')
-                                    " \ . '%#TabWinSelRight#'.nr2char('0x2B80') 
-                                    " \ . '%#TabLineSel#' . ','
-                                    " \ . '>'
-                                    " \ . '<'
+                        " \ ','.'%#TabWinSelLeft#'. nr2char('0x2B82')
+                        " \ . '%#TabWinSelRight#'.nr2char('0x2B80') 
+                        " \ . '%#TabLineSel#' . ','
+                        " \ . '>'
+                        " \ . '<'
                     endif
                     call add( out_bufname_list, out_bufname )
                 endfor
                 let sep = ''
                             \ . linesep
-                            " \ . ( is_selected ? '%#TabWinSelRight#'.nr2char('0x2B80') : linesep )
-                            " \ . ( is_selected ? '%#TabLineSel#' : '' )
+                " \ . ( is_selected ? '%#TabWinSelRight#'.nr2char('0x2B80') : linesep )
+                " \ . ( is_selected ? '%#TabLineSel#' : '' )
                 let tabbufnames = join( out_bufname_list, sep )
                 " let tabbufnames = substitute( tabbufnames, sep.sep, ' ','g' )
                 let tablabel_len += 1 * len( out_bufname_list )     " add in separators len
@@ -455,13 +418,9 @@ function! s:Fill_tab_labels()
             if tab_pad
                 "echomsg 'padding ' . tab_pad . ' for ' . tabbufnames
                 let tab_pad = repeat( ' ', tab_pad )
-                if !s:is_gui
-                    let tabbufnames .= ''
-                                \ . ( is_selected ? '%#TabLineSel#' : tabline_unselected )
-                                \ . tab_pad
-                else
-                    let tabbufnames .= tab_pad
-                endif
+                let tabbufnames .= ''
+                            \ . ( is_selected ? '%#TabLineSel#' : tabline_unselected )
+                            \ . tab_pad
             endif
             let tablabel_len += tab_pad
             let tabs_overflow += max( [ 0, ( 3 + tablabel_len ) - g:TabLineSet_max_tab_len ] )
@@ -470,7 +429,7 @@ function! s:Fill_tab_labels()
             "
             "
             let tabexit = ''
-            if s:verbose =~ 'closers' && !s:is_gui
+            if s:verbose =~ 'closers'
                 let tabexit .= ( is_selected ? '%#TabExitSel#' : tabexit_unselected )
                 let tabexit .= ( is_selected ? '%' . tabnr . 'X✖%X' : " ")
                 " let tabexit .= ( is_selected ? '%' . tabnr . 'X✖%X ' : '' )
@@ -478,35 +437,29 @@ function! s:Fill_tab_labels()
             endif
 
             let tabsep = ''
-            if !s:is_gui
-                if tabnr == tabpagenr('$')
-                    exec "let tabsep .= (is_selected ?  '%#TabSepSelLast#' : '%#TabSepLast".tabnr."#' )"
-                elseif tabnr == tabpagenr()-1
-                    exec "let tabsep .= '%#TabSepNextSel".tabnr."#'"
-                else
-                    exec "let tabsep .= (is_selected ?  '%#TabSepSel".tabnr."#' : '%#TabSep".tabnr."#' )"
-                endif
-                let tabsep .= nr2char(0x2b80)
+            if tabnr == tabpagenr('$')
+                exec "let tabsep .= (is_selected ?  '%#TabSepSelLast#' : '%#TabSepLast".tabnr."#' )"
+            elseif tabnr == tabpagenr()-1
+                exec "let tabsep .= '%#TabSepNextSel".tabnr."#'"
+            else
+                exec "let tabsep .= (is_selected ?  '%#TabSepSel".tabnr."#' : '%#TabSep".tabnr."#' )"
             endif
+            let tabsep .= nr2char(0x2b80)
 
             " ------------------------------------------------------------
             "  Put the pieces together
             "
-            if !s:is_gui
-                let tablabel_len += 2
-                let tablabel = '%' . ( tabnr ) . 'T'
-                            \ . tablabel . ' ' . tabbufnames . ' ' . tabexit
-                            \ . '%T'
-                            \ . tabsep
-                            " \ . ( is_selected ? '%#TabLineSel#' : tabline_unselected )
-                "
-                " Note: it's important to have the final %T before
-                " the separator char, '|', so it won't be a part
-                " of the tab, and therefore won't help the
-                " wrapping function to break correctly.
-            else
-                let tablabel .= tabbufnames
-            endif
+            let tablabel_len += 2
+            let tablabel = '%' . ( tabnr ) . 'T'
+                        \ . tablabel . ' ' . tabbufnames . ' ' . tabexit
+                        \ . '%T'
+                        \ . tabsep
+            " \ . ( is_selected ? '%#TabLineSel#' : tabline_unselected )
+            "
+            " Note: it's important to have the final %T before
+            " the separator char, '|', so it won't be a part
+            " of the tab, and therefore won't help the
+            " wrapping function to break correctly.
             " ------------------------------------------------------------
             "  Tab label custom regex:
             "
@@ -523,11 +476,11 @@ function! s:Fill_tab_labels()
             "           let total += strlen( join( s:tabline_pieces[tabnr].bufnr_list, ',' ) )
             "           let total += s:tabline_pieces[tabnr].curr_bufnr > 0 
             "           let total += strlen( r_brac . s:tabline_pieces[tabnr].misc_vals . l_brac )
-            "           let total += s:verbose =~ 'closers' && !s:is_gui
+            "           let total += s:verbose =~ 'closers' 
             " ------------------------------------------------------------
             "  Handle tab wrapping:
             "
-            if !s:is_gui && g:TabLineSet_max_wrap > 1
+            if g:TabLineSet_max_wrap > 1
                 " compensate for trailing line space on wrapped tablines
                 " created by the internal wrapping [patch]
                 "
@@ -551,27 +504,21 @@ function! s:Fill_tab_labels()
         endfor " for tabnr in tabnrs
         "
         " --------------------------------------------------
-        if s:is_gui
-            " This wigs out the gui labels after a certain size.
-        else
-            for tabnr in tabnrs
-                let tabline_out .= g:TabLineSet_tablabels[ tabnr ]
-            endfor
-        endif
+        for tabnr in tabnrs
+            let tabline_out .= g:TabLineSet_tablabels[ tabnr ]
+        endfor
         " --------------------------------------------------
         "  Final formatting
         "
         " after the last tab fill with TabLineFill and reset tab page nr
         let last_close = ''
-        if !s:is_gui
             let tabline_out .= '%#TabLineFillEnd#'
             "let last_close = repeat(' ', &columns - g:TabLineSet_col )
             if tabpagenr('$') > 1 && s:verbose == ''
                 let last_close .= '%=%#TabLine#%999X!X%X%##'
             endif
             let g:TabLineSet_out_pos += 1
-        endif
-        if !s:is_gui && exists('&mousefunc')            
+        if exists('&mousefunc')            
             " tabline called from in mousefunc? && &mousefunc != ''
             if g:TabLineSet_max_wrap > 1
                 let last_close .= ' <-'
@@ -638,7 +585,7 @@ function! s:Fill_tab_labels()
             "           call s:Fill_bufnames()
         endif
     endwhile " big loop
-    if s:is_gui && v:lnum > 0
+    if v:lnum > 0
         return g:TabLineSet_tablabels[ v:lnum ]
     endif
     return tabline_out
@@ -909,11 +856,6 @@ endfunction
 " 
 
 set tabline=%!TabLineSet_main()
-set guitablabel=%!TabLineSet_main()
-"set guitablabel=%!TabLineSet_main()
-if exists('&guitabtooltip')
-    set guitabtooltip=%!TabLineSet_guitabtooltip()
-endif
 
 if &showtabline < 1
     set showtabline=1   " 2=always
@@ -1047,82 +989,12 @@ endfunction
 
 call TabLineSet_hl_init()
 
+augroup au_tablimit
+	au!
+    au TabEnter * if tabpagenr('$') > 8 | :close | :echoerr "Too many tabs open" | endif 
+augroup END
+
 " End highlighting   }}}
-
-" Gui Tooltip {{{
-
-function! TabLineSet_guitabtooltip()
-
-    let tabnr = v:lnum
-
-    "let numwins_out = tabpagewinnr( tabnr, "$" )
-    let label = ''
-
-    for winnr in range( 1, tabpagewinnr( tabnr, "$" ) )
-        "for bufnr in tabpagebuflist( tabnr )
-        let bufnr = winbufnr( winnr )
-
-        let tabnr_out = ''
-        if g:TabLineSet_verbose =~ 'tabnr'
-            let tabnr_out = 't' . tabnr 
-        endif
-        let winnr_out = ''
-        if g:TabLineSet_verbose =~ 'winnr'
-            let winnr_out = 'w' . winnr 
-        endif
-        let bufnr_out = ''
-        if g:TabLineSet_verbose =~ 'bufnr'
-            let bufnr_out = 'b' . bufnr
-        endif
-
-        let out_list = [ tabnr_out, winnr_out, bufnr_out ]
-        let out_list = filter( out_list, 'v:val != "" ' )
-
-        if len( out_list ) > 0
-            let misc_vals = join( out_list , ',' )
-            let r_brac = ''
-            let l_brac = ':'
-            let label .= 
-                        \   r_brac
-                        \ . misc_vals
-                        \ . l_brac
-        endif
-
-        if g:TabLineSet_verbose =~ 'full_path'
-            let label .= fnamemodify( bufname( bufnr ), ':p' ) 
-        else
-            let label .= fnamemodify( bufname( bufnr ), ':t' ) 
-        endif
-
-        "let label .= "\r\n\<nl>"
-        "let label .= "\<eol>"
-        let label .= " ; "
-    endfor
-    return label
-endfunction
-
-" }}}
-
-aug TabLineSet_au
-    au!
-    au BufEnter * call TabLineSet_BufEnter()
-    au WinEnter * call TabLineSet_WinEnter()
-aug END
-
-" This is for the GUI tabs, which don't have information on what is the
-" current notion of tab/winnr
-function! TabLineSet_BufEnter()
-    let s:bufenter_tabnr = tabpagenr()
-    let s:bufenter_winnr = winnr()
-    let s:bufenter_bufnr = bufnr("%")
-    "echomsg 't ' .s:bufenter_tabnr . ', w ' . s:bufenter_winnr . ', b ' . s:bufenter_bufnr 
-endfunction
-
-function! TabLineSet_WinEnter()
-    call TabLineSet_BufEnter()
-endfunction
-
-call TabLineSet_BufEnter()
 
 "let g:TabLineSet_tab_status = {}
 "let g:TabLineSet_min_tab_len = 30
