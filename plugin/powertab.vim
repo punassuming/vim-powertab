@@ -1,7 +1,7 @@
 " Tabline.vim {{{
 
 " Original Author:       Eric Arnold ( eric_p_arnold@yahoo.com )
-" Last Change: 2012 Feb 16
+" Last Change: 2012 Feb 17
 
 " Configuration variables section {{{
 let g:TabLineSet_min_tab_len = 5        " minimum tab width (space padded)
@@ -48,7 +48,7 @@ let g:TabLineSet_verbose_sets =
         "  Here:
         "  |
         "  V
-call add( g:TabLineSet_verbose_sets, [ 'closers', 'buffers_list' ] )
+call add( g:TabLineSet_verbose_sets, [ 'closers', 'buffers_list', 'filler_func' ] )
 " As promised, there is still a string variable for the options list
 " which can be set like:
 "
@@ -69,12 +69,6 @@ let g:TabLineSet_verbose = join( g:TabLineSet_verbose_sets[0], ',' )
 " looping a lot.  If you add bunches of filters, it might affect performance.
 "
 "
-"
-inoremap <tab>  <C-G>u<C-R>=snipMate#TriggerSnippet()<CR>
-
-"NERD_tree
-"NERD_tree_1
-
 
 let g:TabLineSet_bufname_filters = [ 
         \   [ '\[No Name\]'      , '❮❯'        ] , 
@@ -106,7 +100,7 @@ let g:TabLineSet_bufname_filters = [
         \ ]
 "
 let g:TabLineSet_tab_filters = [
-        \   [ ',',       '|',   'g' ]
+        \   [ ',',       nr2char('0x2502'),   'g' ]
         \ ]
         "\  [ '%#TabPunct\w*#,%#Tab\w*#',        ';',   'g' ]
         " This example removes the commans and their highlighting, and
@@ -149,6 +143,7 @@ let g:TabLineSet_tabline_filters = [
 "
 let g:TabLineSet_output_pre = ''
 let g:TabLineSet_output_post = ''
+
 " Use the filler func to doddle in the ending  space in the tabline:
 "
 let g:TabLineSetFillerFunc = 'TabLineSetFillerTest'
@@ -310,22 +305,9 @@ function! s:Fill_tab_labels()
 
             exec "let tabline_unselected = '%#TabLine".tabnr."#'"
             exec "let tabexit_unselected = '%#TabExit".tabnr."#'"
+            exec "let tabmod_unselected = '%#TabMod".tabnr."#'"
 
-            let tablabel .= is_selected ? '%#TabLineSel#' : tabline_unselected
-            " ------------------------------------------------------------
-            " Add an indicator that some buffer in the tab is modified:
-            "
-            let s:tabline_pieces[tabnr].modded_chars = ''
-            for bufnr in bufnr_list
-                if s:verbose =~ 'modified' && getbufvar( bufnr,  '&modified' ) > 0
-                    let s:tabline_pieces[tabnr].modded_chars = '+'
-                    let tablabel .= '%#TabModded#'
-                                \ . "+"
-                                \ . ( is_selected ? '%#TabLineSel#' : tabline_unselected )
-                    let tablabel_len += 1
-                    break
-                endif
-            endfor
+                let tablabel .= is_selected ? '%#TabLineSel#' : tabline_unselected
             " ------------------------------------------------------------
             " Misc values
             "
@@ -388,6 +370,19 @@ function! s:Fill_tab_labels()
                 let s:tabline_pieces[tabnr].bufnr_list = 
                             \ [ s:tabline_pieces[tabnr].curr_bufnr ]
             endif
+            " ------------------------------------------------------------
+            " Add an indicator that some buffer in the tab is modified:
+            "
+            let s:tabline_pieces[tabnr].modded_chars = ''
+            for bufnr in bufnr_list
+                if s:verbose =~ 'modified' && getbufvar( bufnr,  '&modified' ) > 0
+                    let s:tabline_pieces[tabnr].modded_chars = '+'
+                    let tablabel .= (is_selected ? '%#TabMod#' : tabmod_unselected) 
+                    let tablabel .= nr2char("0x2551") . ( is_selected ? '%#TabLineSel#' : tabline_unselected )
+                    let tablabel_len += 1
+                    break
+                endif
+            endfor
             let save_tablabel_len = tablabel_len
             let stop = 0
             while !stop
@@ -400,27 +395,31 @@ function! s:Fill_tab_labels()
                 for bufnr in s:tabline_pieces[tabnr].bufnr_list
                     let out_bufname = s:bufnames[ bufnr ] 
                     if buflisted(bufnr)
-                        let out_bufname = bufnr . ':' . out_bufname
+                        let out_bufname = out_bufname
+                        " let out_bufname = bufnr . ':' . out_bufname
                     endif
                     let tablabel_len += strlen( out_bufname )
                     if is_selected
                                 \ && s:verbose =~ '\(tabnr\|winnr\|bufnr\)' 
                                 \ && s:tabline_pieces[tabnr].curr_bufnr == bufnr
                                 \ && len( s:tabline_pieces[tabnr].bufnr_list ) > 1
-                        let out/_bufname = 
-                                    \ '%#TabWinSel#' 
-                                    \ .  out_bufname
-                                    \ .  ( is_selected ? '%#TabLineSel#' : tabline_unselected )
+                        let out_bufname = 
+                                    \ '%#TabWinSel#'. out_bufname 
+                                    \ . '%#TabLineSel#'
+                                    " \ ','.'%#TabWinSelLeft#'. nr2char('0x2B82')
+                                    " \ . '%#TabWinSelRight#'.nr2char('0x2B80') 
+                                    " \ . '%#TabLineSel#' . ','
                                     " \ . '>'
                                     " \ . '<'
                     endif
                     call add( out_bufname_list, out_bufname )
                 endfor
                 let sep = ''
-                            \ . ( is_selected ? '%#TabPunctSel#' : '%#TabPunct#' )
                             \ . linesep
-                            \ . ( is_selected ? '%#TabLineSel#' : tabline_unselected )
+                            " \ . ( is_selected ? '%#TabWinSelRight#'.nr2char('0x2B80') : linesep )
+                            " \ . ( is_selected ? '%#TabLineSel#' : '' )
                 let tabbufnames = join( out_bufname_list, sep )
+                " let tabbufnames = substitute( tabbufnames, sep.sep, ' ','g' )
                 let tablabel_len += 1 * len( out_bufname_list )     " add in separators len
                 "
                 " If there is extra space because of min_tab_len, grow the
@@ -473,8 +472,9 @@ function! s:Fill_tab_labels()
             let tabexit = ''
             if s:verbose =~ 'closers' && !s:is_gui
                 let tabexit .= ( is_selected ? '%#TabExitSel#' : tabexit_unselected )
-                            \ . '%' . tabnr . 'X✖%X'
-                let tabexit .= ( is_selected ? '%#TabLineSel#' : tabline_unselected )
+                let tabexit .= ( is_selected ? '%' . tabnr . 'X✖%X' : " ")
+                " let tabexit .= ( is_selected ? '%' . tabnr . 'X✖%X ' : '' )
+                " let tabexit .= ( is_selected ? '%#TabLineSel#' : tabline_unselected )
             endif
 
             let tabsep = ''
@@ -498,7 +498,7 @@ function! s:Fill_tab_labels()
                             \ . tablabel . ' ' . tabbufnames . ' ' . tabexit
                             \ . '%T'
                             \ . tabsep
-                            \ . ( is_selected ? '%#TabLineSel#' : tabline_unselected )
+                            " \ . ( is_selected ? '%#TabLineSel#' : tabline_unselected )
                 "
                 " Note: it's important to have the final %T before
                 " the separator char, '|', so it won't be a part
@@ -585,10 +585,13 @@ function! s:Fill_tab_labels()
                     \ - g:TabLineSet_out_pos 
                     \ - ( last_close == '' ? 2 : 0 )
         " TODO Fix filler functions
-        " if g:TabLineSetFillerFunc != '' && s:verbose =~ 'filler_func'
-        " let tabline_out .= '%{' . g:TabLineSetFillerFunc . '(' . a . ')}'
-        " endif
+
+        if g:TabLineSetFillerFunc != '' && s:verbose =~ 'filler_func'
+        let tabline_out .= '%{' . g:TabLineSetFillerFunc . '(' . a . ')}'
+        endif
+
         let tabline_out .= last_close
+
         let g:TabLineSet_output_pre = tabline_out
         for elem in g:TabLineSet_tabline_filters 
             while len( elem ) < 3 | call add( elem, '' ) | endwhile
@@ -839,6 +842,7 @@ function! TabLineSetFillerTest( avail )
     else
         let comp_name = tolower(expand('$HOSTNAME'))
     endif
+
     let comp_name = '(' . comp_name . ')'
     let out = bufname_full 
     ". strftime( '%H:%M' ) . ' B:' . bufnr('$') . ' T:' . tabpagenr('$')
@@ -970,9 +974,13 @@ function! TabLineSet_hl_init()
                 \   guifg=black guibg=darkgrey gui=None
 
     hi! TabWinSel term=None gui=None guifg=white guibg=#F92672
+
+    hi! TabWinSelRight term=None gui=None guifg=#F92672 guibg=#CD5907
+    hi! TabWinSelLeft term=None gui=None guifg=#F92672 guibg=#CD5907
+
     hi! TabBufSel term=None gui=None,bold
 
-    hi! TabModded term=None  gui=None guibg=#AAF412 guifg=black
+    hi! TabMod term=None  gui=None guibg=#CD5907 guifg=white
 
 
     hi! TabExitSel gui=None term=None  guifg=white guibg=#CD5907 ctermbg=166
@@ -997,6 +1005,24 @@ function! TabLineSet_hl_init()
                 \'grey10',
                 \'grey10']
 
+    let invgreys = [
+                \'black',
+                \'black',
+                \'grey10',
+                \'grey10',
+                \'grey20',
+                \'grey20',
+                \'grey50',
+                \'grey60',
+                \'grey70',
+                \'grey80',
+                \'grey90',
+                \'grey90',
+                \'grey90',
+                \'grey90',
+                \'grey90',
+                \'grey90']
+
 
     for i in range(1,10)
         exec "hi! TabSepLast".i." term=None  guifg=".greys[i]." guibg=#1B1E1F"
@@ -1007,9 +1033,11 @@ function! TabLineSet_hl_init()
 
         exec "hi! TabSepSel".i." term=None guifg=#CD5907 guibg=".greys[i+1]
 
-        exec "hi! TabLine".i."  term=bold,reverse,None guifg=black guibg=".greys[i]." gui=None"
+        exec "hi! TabLine".i."  term=bold,reverse,None guifg=".invgreys[i]." guibg=".greys[i]." gui=None"
 
-        exec "hi! TabExit".i." term=None,bold  guifg=black guibg=".greys[i]." gui=None"
+        exec "hi! TabExit".i." term=None,bold  guifg=".invgreys[i]." guibg=".greys[i]." gui=None"
+
+        exec "hi! TabMod".i." term=None  guifg=red guibg=".greys[i]." gui=None"
     endfor
 
 
