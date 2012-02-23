@@ -297,18 +297,13 @@ function! s:Fill_tab_labels()
             if s:verbose =~ 'bufnr' && is_selected
                 let bufnr_out .= 'b' . winbufnr( tab_curr_winnr )
             endif
-            if s:tabline_pieces[tabnr].misc_vals != ''
+
+            let s:tabline_pieces[tabnr].misc_vals = tabnr_out
+
                 let r_brac = ''
                 let l_brac = ':'
-                let tablabel .= 
-                            \   r_brac
-                            \ . ( is_selected ? '%#TabWinNumSel#' : '%#TabWinNum#' )
-                            \ . s:tabline_pieces[tabnr].misc_vals
-                            \ . ( is_selected ? '%#TabLineSel#' : tabline_unselected )
-                            \ . l_brac
-                let tablabel_len += strlen( s:tabline_pieces[tabnr].misc_vals
-                            \ . r_brac . l_brac )
-            endif
+                let tablabel .= s:tabline_pieces[tabnr].misc_vals
+                let tablabel_len += strlen( s:tabline_pieces[tabnr].misc_vals)
             "
             " End Misc values, i.e. the number of windows in the tab:
             "
@@ -379,6 +374,8 @@ function! s:Fill_tab_labels()
                             \ . linesep
                 " \ . ( is_selected ? '%#TabWinSelRight#'.nr2char('0x2B80') : linesep )
                 " \ . ( is_selected ? '%#TabLineSel#' : '' )
+
+                let out_bufname_list = []
                 let tabbufnames = join( out_bufname_list, sep )
                 " let tabbufnames = substitute( tabbufnames, sep.sep, ' ','g' )
                 let tablabel_len += 1 * len( out_bufname_list )     " add in separators len
@@ -449,7 +446,7 @@ function! s:Fill_tab_labels()
             "
             let tablabel_len += 2
             let tablabel = '%' . ( tabnr ) . 'T'
-                        \ . tablabel . ' ' . tabbufnames . ' ' . tabexit
+                        \ . tablabel . ' ' . tabbufnames . '' . tabexit
                         \ . '%T'
                         \ . tabsep
             " \ . ( is_selected ? '%#TabLineSel#' : tabline_unselected )
@@ -734,7 +731,8 @@ endfunction
 function! TabLineSetFillerBufferRing( avail )
     let bufs = {}
     for i in range(bufnr('$'))
-        if bufwinnr(i+1) < 0 && buflisted(i+1)
+        " if bufwinnr(i+1) < 0 && buflisted(i+1)
+        if buflisted(i+1)
             let bufs[ i+1 ] = bufname(i+1)
         endif
     endfor
@@ -757,7 +755,7 @@ function! TabLineSetFillerBufferRing( avail )
                 let bufname = ' ' . fnamemodify( bufname, ':t' ) . ' ' 
             endif
             " let bufname = bufno . '|' . fnamemodify( bufname, ':t' ) . ' ' 
-            if bufnr > curbuf
+            if bufnr >= curbuf
                 call add(bufafter, bufname)
             else
                 call add(bufbefore, bufname)
