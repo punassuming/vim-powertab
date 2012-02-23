@@ -1,7 +1,8 @@
-" Tabline.vim {{{
-
+" Powertab: powerline for the tab bar
+" Inspired by: tabline.vim
 " Original Author:       Eric Arnold ( eric_p_arnold@yahoo.com )
-" Last Change: 2012 Feb 17
+" Refactored by: Rich Alesi
+" Last Change: 2012 Feb 23
 
 " Configuration variables section {{{
 let g:TabLineSet_min_tab_len = 5        " minimum tab width (space padded)
@@ -89,7 +90,7 @@ let g:TabLineSet_bufname_filters = [
 " You're on your own as to whether it messes up the tab's formatting, length,
 " etc.
 let g:TabLineSet_bufname_filters = [ 
-        \   [ '\[No Name\]'      , ''        ] , 
+        \   [ '\[No Name\]'      , '_'        ] , 
         \   [ '\[fuf\]'          , 'F'       ] , 
         \   [ '__Tagbar__'       , 'T'       ] , 
         \   [ '__Gundo.*__'      , 'G'       ] , 
@@ -151,9 +152,6 @@ let g:TabLineSet_preproc_func = ''
 "
 let g:TabLineSet_postproc_func = ''
 "let g:TabLineSet_postproc_func = 'Tst_postproc_modified'
-"  End config vars  }}}
-
-" TabLineSet_main() {{{
 
 " These are all static script vars so that it will handle the way guitablabel
 " re-enters for each tab:
@@ -161,6 +159,9 @@ let g:TabLineSet_postproc_func = ''
 let s:tabline_out = ''
 let s:tabline_pieces = {}
 let g:TabLineSet_tablabels = {}
+
+"  End config vars  }}}
+" PowerTab_main {{{1
 
 function! TabLineSet_main( ... )
     set guioptions-=e
@@ -210,6 +211,9 @@ function! TabLineSet_main( ... )
     " ------------------------------------------------------------
     return s:Fill_tab_labels()
 endfunction
+
+"}}}
+" ConstructTabs {{{1
 
 function! s:Fill_tab_labels()
     let s:verbose = g:TabLineSet_verbose
@@ -574,11 +578,10 @@ function! s:Fill_tab_labels()
     return tabline_out
 endfunction
 
-" }}}
+"}}}
 
-" ------------------------------------------------------------
-" Fill bufnames{} 
-"
+" Fill_bufnames; build bufnames dictionary  {{{1
+
 let s:bufnames = {}
 let s:bufnames_orig = {}
 
@@ -614,9 +617,10 @@ function! s:Fill_bufnames()
     endfor
     let s:bufnames_orig = deepcopy( s:bufnames )
 endfunction
-"
-" End Fill bufnames{} 
-"
+
+"}}}
+" Shrink Bufnames {{{1
+
 " ------------------------------------------------------------
 
 function! s:abs( i )
@@ -692,10 +696,9 @@ function! s:Shrink_bufnames( bufnames, shrink )
     "echomsg 'shrink loop count ' .  loop_counter 
     return bufnames
 endfunction
-"
-" End Shrink the names to fit available columns
-"
-" ------------------------------------------------------------
+
+"}}}
+" Processing {{{1
 
 function! Tst_preproc( tabline )
     return '[test]' . a:tabline
@@ -723,12 +726,10 @@ function! Tst_postproc_modified( tabline )
     endfor
 
 endfunction
-        
 
-"                          Misc functions                              {{{
-" -------------------------------------------------------------------------
-"
-" 
+"}}}
+
+" Misc functions {{{1
 
 function! TabLineSetFillerBufferRing( avail )
     let bufs = {}
@@ -747,10 +748,14 @@ function! TabLineSetFillerBufferRing( avail )
     if len(bufs) > 0
 
         for bufnr in  keys( bufs )
+            " let buftype = getbufvar(bufnr, "&buftype")
             let bufname = bufs[ bufnr]
-            let bufname = (bufname=='') ? '.' : bufname
             let bufno = (bufnr==altbuf) ? '#' : bufnr
-            let bufname = ' ' . fnamemodify( bufname, ':t' ) . ' ' 
+            if bufname == '' 
+                continue
+            else
+                let bufname = ' ' . fnamemodify( bufname, ':t' ) . ' ' 
+            endif
             " let bufname = bufno . '|' . fnamemodify( bufname, ':t' ) . ' ' 
             if bufnr > curbuf
                 call add(bufafter, bufname)
@@ -773,15 +778,13 @@ function! TabLineSetFillerBufferRing( avail )
     let comp_name = '(' . comp_name . ')'
 
     let out =  '%#TabSepLast4#'.nr2char('0x2B82') . '%#TabLine4#'. bufname_full
-
-    let outlen = strchars(substitute(copy(out),'%#\S\+#','','g'))
-
+    let outlen = strchars(substitute(copy(out),'%#[A-Za-z0-9]\+#','','g'))
 
     let working_dir = substitute(fnamemodify(getcwd(),':p'), fnamemodify(getcwd(),':p:h:h:h'), '', 'g')
 
     let end =  '%#TabSep3#' . nr2char('0x2B82') . '%#TabLine3#' . ' '. working_dir . ' ' . nr2char('0x2551') . ' '. strftime( '%H:%M' ) . ' '
 
-    let endlen = strchars(substitute(end,'%#\S\+#','','g')) + 1
+    let endlen = strchars(substitute(end,'%#[A-Za-z0-9]\+#','','g'))
     " . ' B:' . bufnr('$') . ' T:' . tabpagenr('$') . comp_name
 
     while outlen + endlen > a:avail
@@ -800,10 +803,7 @@ endfunction
 
 " End Misc functions  }}}
 
-"                          Highlighting (configurable)                  {{{
-" -------------------------------------------------------------------------
-"
-" 
+" Highlighting (configurable) {{{1
 
 
 if &showtabline < 1
@@ -812,39 +812,6 @@ endif
 
 function! TabLineSet_hl_init()
     "
-    hi! TabWinNum term=bold,None  gui=bold,None
-                \  guifg=black  guibg=DarkGrey
-
-    hi! TabWinNumSel term=bold,None  gui=bold,None
-                \   guifg=white guibg=#CD5907
-
-    hi! TabLineFill term=None  gui=None
-
-    hi! TabLineFillEnd term=None  gui=None
-                \   guifg=#F8F8F2 guibg=#1B1E1F
-
-    hi! TabLineSel  term=bold,reverse,None 
-                \   guifg=#F8F8F2 guibg=#CD5907 gui=None ctermbg=166 ctermfg=255
-
-    hi! TabLine  term=bold,reverse,None 
-                \   guifg=black guibg=darkgrey gui=None
-
-    hi! TabWinSel term=None gui=None guifg=white guibg=#F92672
-
-    hi! TabWinSelRight term=None gui=None guifg=#F92672 guibg=#CD5907
-    hi! TabWinSelLeft term=None gui=None guifg=#F92672 guibg=#CD5907
-
-    hi! TabBufSel term=None gui=None,bold
-
-    hi! TabMod term=None  gui=None guibg=#CD5907 guifg=white
-
-
-    hi! TabExitSel gui=None term=None  guifg=white guibg=#CD5907 ctermbg=166
-
-
-    hi! TabSepSelLast term=None
-                \   guifg=#CD5907 guibg=#1B1E1F
-
     let greys = [
                 \'grey90',
                 \'grey80',
@@ -876,26 +843,44 @@ function! TabLineSet_hl_init()
                 \'grey90',
                 \'grey90',
                 \'grey90']
+    " TODO define cterm fg anf bg options for highlight
+
+    hi! TabLine  term=bold,reverse,None guifg=black guibg=darkgrey gui=None
+    hi! TabLineFill term=None  gui=None
+    hi! TabLineFillEnd term=None  gui=None  guifg=#F8F8F2 guibg=#1B1E1F
+    hi! TabWinNum term=bold,None  gui=bold,None  guifg=black  guibg=DarkGrey
+    hi! TabWinNumSel term=bold,None  gui=bold,None   guifg=white guibg=#CD5907
 
 
-    for i in range(1,10)
+    " selected
+    hi! TabLineSel  term=bold,reverse,None 
+                \   guifg=#F8F8F2 guibg=#CD5907 gui=None ctermbg=166 ctermfg=255
+    hi! TabMod term=None  gui=None guibg=#CD5907 guifg=white
+    hi! TabSepSelLast term=None  guifg=#CD5907 guibg=#1B1E1F
+    hi! TabBufSel term=None gui=None,bold
+    hi! TabExitSel gui=None term=None  guifg=white guibg=#CD5907 ctermbg=166
+    hi! TabWinSel term=None gui=None guifg=white guibg=#F92672
+    hi! TabWinSelLeft term=None gui=None guifg=#F92672 guibg=#CD5907
+    hi! TabWinSelRight term=None gui=None guifg=#F92672 guibg=#CD5907
+
+    for i in range(1,9)
+        " seperators
         exec "hi! TabSepLast".i." term=None  guifg=".greys[i]." guibg=#1B1E1F"
-
+        " unselected
         exec "hi! TabSep".i." term=None guifg=".greys[i]." guibg=".greys[i+1]
-
+        " before selected
         exec "hi! TabSepNextSel".i." term=None guifg=".greys[i]." guibg=#CD5907"
-
+        " selected tab
         exec "hi! TabSepSel".i." term=None guifg=#CD5907 guibg=".greys[i+1]
 
+        " unselected line
         exec "hi! TabLine".i."  term=bold,reverse,None guifg=".invgreys[i]." guibg=".greys[i]." gui=None"
-
+        " unselected line exit 
         exec "hi! TabExit".i." term=None,bold  guifg=".invgreys[i]." guibg=".greys[i]." gui=None"
 
+        " modified for unselected
         exec "hi! TabMod".i." term=None  guifg=red guibg=".greys[i]." gui=None"
     endfor
-
-
-
 
 endfunction
 
@@ -908,9 +893,4 @@ augroup au_tablimit
 augroup END
 
 " End highlighting   }}}
-
-"let g:TabLineSet_tab_status = {}
-"let g:TabLineSet_min_tab_len = 30
-
-" }}}
 
