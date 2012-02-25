@@ -2,7 +2,7 @@
 " Inspired by: tabline.vim
 " Original Author:       Eric Arnold ( eric_p_arnold@yahoo.com )
 " Refactored by: Rich Alesi
-" Last Change: 2012 Feb 23
+" Last Change: 2012 Feb 25
 
 " Configuration variables section {{{
 let g:TabLineSet_min_tab_len = 5        " minimum tab width (space padded)
@@ -329,6 +329,7 @@ function! s:Fill_tab_labels()
             " ------------------------------------------------------------
             " Add an indicator that some buffer in the tab is modified:
             "
+            let saved_tablabel_len = tablabel_len
             let s:tabline_pieces[tabnr].modded_chars = ''
             for bufnr in bufnr_list
                 if s:verbose =~ 'modified' && getbufvar( bufnr,  '&modified' ) > 0
@@ -426,7 +427,8 @@ function! s:Fill_tab_labels()
             let tabexit = ''
             " if s:verbose =~ 'closers'
             let tabexit .= ( is_selected ? '%#TabExitSel#' : tabexit_unselected )
-            let tabexit .= ( is_selected ? '%' . tabnr . 'X✖%X' : " ")
+            " let tabexit .= ( is_selected ? '%' . tabnr . 'X✖%X' : " ")
+            let tabexit .='%' . tabnr . 'X✖%X'
             " let tabexit .= ( is_selected ? '%' . tabnr . 'X✖%X ' : '' )
             " let tabexit .= ( is_selected ? '%#TabLineSel#' : tabline_unselected )
             " endif
@@ -511,7 +513,7 @@ function! s:Fill_tab_labels()
             let last_close .= s
         endif
 
-        let a = ( usable_columns - 0 ) 
+        let a = ( usable_columns - 1 ) 
                     \ - g:TabLineSet_out_pos 
 
         " TODO Fix filler functions
