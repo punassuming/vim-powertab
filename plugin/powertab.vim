@@ -2,7 +2,7 @@
 " Inspired by: tabline.vim
 " Original Author:       Eric Arnold ( eric_p_arnold@yahoo.com )
 " Refactored by: Rich Alesi
-" Last Change: 2012 Feb 23
+" Last Change: 2012 Mar 05
 
 " Configuration variables section {{{
 let g:TabLineSet_min_tab_len = 5        " minimum tab width (space padded)
@@ -777,12 +777,13 @@ function! TabLineSetFillerBufferRing( avail )
 
     let comp_name = '(' . comp_name . ')'
 
-    let out =  '%#TabSepLast4#'.nr2char('0x2B82') . '%#TabLine4#'. bufname_full
+    let out =  '%#TabSepLast1#'.nr2char('0x2B82') . '%#TabLine1#'. bufname_full
     let outlen = strchars(substitute(copy(out),'%#[A-Za-z0-9]\+#','','g'))
 
-    let working_dir = substitute(fnamemodify(getcwd(),':p'), fnamemodify(getcwd(),':p:h:h:h'), '', 'g')
+    let working_dir = substitute(fnamemodify(getcwd(),':p'), fnamemodify(getcwd(),':p:h:h:h'), '', '')
 
-    let end =  '%#TabSep3#' . nr2char('0x2B82') . '%#TabLine3#' . ' '. working_dir . ' ' . nr2char('0x2551') . ' '. strftime( '%H:%M' ) . ' '
+    let end =  '%#TabSep0#' . nr2char('0x2B82') . '%#TabLine0#' . ' '. working_dir 
+                " \. ' ' . nr2char('0x2551') . ' '. strftime( '%H:%M' ) . ' '
 
     let endlen = strchars(substitute(end,'%#[A-Za-z0-9]\+#','','g'))
     " . ' B:' . bufnr('$') . ' T:' . tabpagenr('$') . comp_name
@@ -813,36 +814,37 @@ endif
 function! TabLineSet_hl_init()
     "
     let greys = [
-                \'grey90',
-                \'grey80',
-                \'grey70',
-                \'grey60',
-                \'grey50',
-                \'grey40',
-                \'grey30',
-                \'grey20',
-                \'grey10',
-                \'grey10',
-                \'grey10',
-                \'grey10',
-                \'grey10',
-                \'grey10']
+                \[255, 'white'],
+                \[249, 'grey80'],
+                \[246, 'grey70'],
+                \[244, 'grey60'],
+                \[241, 'grey50'],
+                \[239, 'grey40'],
+                \[236, 'grey30'],
+                \[234, 'grey20'],
+                \[234, 'grey10'],
+                \[0, 'black'],
+                \[234, 'grey10'],
+                \[234, 'grey10'],
+                \[234, 'grey10'],
+                \[234, 'grey10']]
 
     let invgreys = [
-                \'black',
-                \'black',
-                \'grey10',
-                \'grey10',
-                \'grey20',
-                \'grey20',
-                \'grey70',
-                \'grey80',
-                \'grey90',
-                \'grey90',
-                \'grey90',
-                \'grey90',
-                \'grey90',
-                \'grey90']
+                \[0  , 'black' ]  ,
+                \[16  , 'black' ]  ,
+                \[234 , 'grey10']  ,
+                \[234 , 'grey10']  ,
+                \[236 , 'grey20']  ,
+                \[236 , 'grey20']  ,
+                \[249 , 'grey70']  ,
+                \[252 , 'grey80']  ,
+                \[254 , 'grey90']  ,
+                \[255 , 'white']  ,
+                \[254 , 'grey90']  ,
+                \[254 , 'grey90']  ,
+                \[254 , 'grey90']  ,
+                \[254 , 'grey90']]
+
     " TODO define cterm fg anf bg options for highlight
 
     hi! TabLine  term=bold,reverse,None guifg=black guibg=darkgrey gui=None
@@ -853,39 +855,41 @@ function! TabLineSet_hl_init()
 
 
     " selected
+
     hi! TabLineSel  term=bold,reverse,None 
                 \   guifg=#F8F8F2 guibg=#CD5907 gui=None ctermbg=166 ctermfg=255
     hi! TabMod term=None  gui=None guibg=#CD5907 guifg=white
-    hi! TabSepSelLast term=None  guifg=#CD5907 guibg=#1B1E1F
+    hi! TabSepSelLast term=None  guifg=#CD5907 guibg=#1B1E1F ctermbg=234 ctermfg=166
     hi! TabBufSel term=None gui=None,bold
     hi! TabExitSel gui=None term=None  guifg=white guibg=#CD5907 ctermbg=166
     hi! TabWinSel term=None gui=None guifg=white guibg=#F92672
     hi! TabWinSelLeft term=None gui=None guifg=#F92672 guibg=#CD5907
     hi! TabWinSelRight term=None gui=None guifg=#F92672 guibg=#CD5907
 
-    for i in range(1,9)
+    for i in range(0,10)
         " seperators
-        exec "hi! TabSepLast".i." term=None  guifg=".greys[i]." guibg=#1B1E1F"
+        exec "hi! TabSepLast" . i . " term=None gui=None ctermfg=".greys[i][0]." ctermbg=234 guifg=" . greys[i][1] . " guibg=#1B1E1F"
         " unselected
-        exec "hi! TabSep".i." term=None guifg=".greys[i]." guibg=".greys[i+1]
+        exec "hi! TabSep" . i . " term=None gui=None ctermfg=".greys[i][0]." ctermbg=".greys[i+1][0]." guifg=" . greys[i][1] . " guibg=" . greys[i+1][1]
         " before selected
-        exec "hi! TabSepNextSel".i." term=None guifg=".greys[i]." guibg=#CD5907"
+        exec "hi! TabSepNextSel" . i . " term=None gui=None ctermfg=".greys[i][0]." ctermbg=166 guifg=" . greys[i][1] . " guibg=#CD5907"
         " selected tab
-        exec "hi! TabSepSel".i." term=None guifg=#CD5907 guibg=".greys[i+1]
+        exec "hi! TabSepSel" . i . " term=None gui=None ctermfg=166 ctermbg=".greys[i+1][0]." guifg=#CD5907 guibg=" . greys[i+1][1]
 
         " unselected line
-        exec "hi! TabLine".i."  term=bold,reverse,None guifg=".invgreys[i]." guibg=".greys[i]." gui=None"
+        exec "hi! TabLine" . i . " term=None ctermfg=" . invgreys[i][0] . " guifg=" . invgreys[i][1] . " ctermbg=" . greys[i][0] . " guibg=" . greys[i][1] . " gui=None"
         " unselected line exit 
-        exec "hi! TabExit".i." term=None,bold  guifg=".invgreys[i]." guibg=".greys[i]." gui=None"
+        exec "hi! TabExit" . i . " term=None ctermfg=" . invgreys[i][0] . " guifg=" . invgreys[i][1] . " ctermbg=" . greys[i][0] . " guibg=" . greys[i][1] . " gui=None,bold"
 
         " modified for unselected
-        exec "hi! TabMod".i." term=None  guifg=red guibg=".greys[i]." gui=None"
+        exec "hi! TabMod" . i . " term=None guifg=red guibg=" . greys[i][1] . " gui=None ctermbg=" . greys[i][0]
     endfor
 
 endfunction
 
 call TabLineSet_hl_init()
 set tabline=%!TabLineSet_main()
+au ColorScheme * call TabLineSet_hl_init()
 
 augroup au_tablimit
 	au!
