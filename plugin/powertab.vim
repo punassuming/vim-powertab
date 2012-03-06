@@ -2,7 +2,7 @@
 " Inspired by: tabline.vim
 " Original Author:       Eric Arnold ( eric_p_arnold@yahoo.com )
 " Refactored by: Rich Alesi
-" Last Change: 2012 Mar 05
+" Last Change: 2012 Mar 06
 
 " Configuration variables section {{{
 let g:TabLineSet_min_tab_len = 5        " minimum tab width (space padded)
@@ -201,15 +201,27 @@ function! TabLineSet_main( ... )
     " echomsg 'diff ' . key . ' = ' . string( t[key] ) . ' != ' . string( g:TabLineSet_tab_status[key] )
     " endif
     " endfor
+
+
     if t == g:TabLineSet_tab_status
                 \ && g:TabLineSet_output_post != ''
-        return g:TabLineSet_output_post
+        let usable_columns = &columns
+        let a = usable_columns - g:TabLineSet_out_pos 
+        exec "let filler = ".g:TabLineSetFillerFunc.'(' . a . ",0)"
+        return g:TabLineSet_output_post . filler
     endif
+
     let g:TabLineSet_tab_status = deepcopy(t)
     "
     " End recalc calc
     " ------------------------------------------------------------
-    return s:Fill_tab_labels()
+    let front_part  = s:Fill_tab_labels() 
+    let usable_columns = max( [ &columns , g:TabLineSet_max_cols ] )
+    let a = ( usable_columns - 0 ) 
+                \ - g:TabLineSet_out_pos 
+    exec "let filler = ".g:TabLineSetFillerFunc.'(' . a . ",1)"
+    
+    return front_part . filler
 endfunction
 
 "}}}
@@ -518,9 +530,10 @@ function! s:Fill_tab_labels()
                     \ - g:TabLineSet_out_pos 
 
         " TODO Fix filler functions
+        let g:TabLineSet_output_post = tabline_out
 
         if g:TabLineSetFillerFunc != '' 
-            exec "let tabline_out .= ".g:TabLineSetFillerFunc.'(' . a . ")"
+            " exec "let tabline_out .= ".g:TabLineSetFillerFunc.'(' . a . ")"
         endif
 
         " don't need this with individual closers
@@ -731,74 +744,94 @@ endfunction
 
 " Misc functions {{{1
 
-function! TabLineSetFillerBufferRing( avail )
-    let bufs = {}
-    for i in range(bufnr('$'))
-        if bufwinnr(i+1) < 0 && buflisted(i+1)
-            let bufs[ i+1 ] = bufname(i+1)
-        endif
-    endfor
-
-    let bufbefore = []
-    let bufafter = []
-    let bufname_full = ''
-    let curbuf = bufnr('%')
-    let altbuf = bufnr('#')
-
-    if len(bufs) > 0
-
-        for bufnr in  keys( bufs )
-            " let buftype = getbufvar(bufnr, "&buftype")
-            let bufname = bufs[ bufnr]
-            let bufno = (bufnr==altbuf) ? '#' : bufnr
-            if bufname == '' 
-                continue
-            else
-                let bufname = ' ' . fnamemodify( bufname, ':t' ) . ' ' 
-            endif
-            " let bufname = bufno . '|' . fnamemodify( bufname, ':t' ) . ' ' 
-            if bufnr > curbuf
-                call add(bufafter, bufname)
-            else
-                call add(bufbefore, bufname)
+function! TabLineSetFillerBufferRing( avail, ... )
+    if a:1 == 1 || !exists("g:filllen")
+        let bufs = {}
+        for i in range(bufnr('$'))
+            if bufwinnr(i+1) < 0 && buflisted(i+1)
+                let bufs[ i+1 ] = bufname(i+1)
             endif
         endfor
 
-        let buf_ring = bufafter + bufbefore
+        let bufbefore = []
+        let bufafter = []
+        let bufname_full = ''
+        let curbuf = bufnr('%')
+        let altbuf = bufnr('#')
 
-        let bufname_full = join(buf_ring,nr2char('0x2B83'))
-    endif
+        if len(bufs) > 0
 
-    if has("win32") || has("win64")
-        let comp_name = tolower(expand('$COMPUTERNAME'))
-    else
-        let comp_name = tolower(expand('$HOSTNAME'))
-    endif
+            for bufnr in  keys( bufs )
+                " let buftype = getbufvar(bufnr, "&buftype")
+                let bufname = bufs[ bufnr]
+                let bufno = (bufnr==altbuf) ? '#' : bufnr
+                if bufname == '' 
+                    continue
+                else
+                    let bufname = ' ' . fnamemodify( bufname, ':t' ) . ' ' 
+                endif
+                " let bufname = bufno . '|' . fnamemodify( bufname, ':t' ) . ' ' 
+                if bufnr > curbuf
+                    call add(bufafter, bufname)
+                else
+                    call add(bufbefore, bufname)
+                endif
+            endfor
 
-    let comp_name = '(' . comp_name . ')'
+            let buf_ring = bufafter + bufbefore
 
-    let out =  '%#TabSepLast1#'.nr2char('0x2B82') . '%#TabLine1#'. bufname_full
-    let outlen = strchars(substitute(copy(out),'%#[A-Za-z0-9]\+#','','g'))
+            let bufname_full = join(buf_ring,nr2char('0x2B83'))
+        endif
 
-    let working_dir = substitute(fnamemodify(getcwd(),':p'), fnamemodify(getcwd(),':p:h:h:h'), '', '')
+        if has("win32") || has("win64")
+            let comp_name = tolower(expand('$COMPUTERNAME'))
+        else
+            let comp_name = tolower(expand('$HOSTNAME'))
+        endif
 
-    let end =  '%#TabSep0#' . nr2char('0x2B82') . '%#TabLine0#' . ' '. working_dir 
-                " \. ' ' . nr2char('0x2551') . ' '. strftime( '%H:%M' ) . ' '
+        let comp_name = '(' . comp_name . ')'
 
-    let endlen = strchars(substitute(end,'%#[A-Za-z0-9]\+#','','g'))
-    " . ' B:' . bufnr('$') . ' T:' . tabpagenr('$') . comp_name
+        let out =  '%#TabSepLast1#'.nr2char('0x2B82') . '%#TabLine1#'. bufname_full
+        let outlen = strchars(substitute(copy(out),'%#[A-Za-z0-9]\+#','','g'))
 
-    while outlen + endlen > a:avail
-        let out = strpart(out,0,strlen(out)-1)
+        let working_dir = substitute(fnamemodify(getcwd(),':p'), fnamemodify(getcwd(),':p:h:h:h'), '', '')
+
+        let end =  '%#TabSep0#' . nr2char('0x2B82') . '%#TabLine0#' . ' '. working_dir 
+        " \. ' ' . nr2char('0x2551') . ' '. strftime( '%H:%M' ) . ' '
+
+        let endlen = strchars(substitute(end,'%#[A-Za-z0-9]\+#','','g'))
+        " . ' B:' . bufnr('$') . ' T:' . tabpagenr('$') . comp_name
+
+        while outlen + endlen > a:avail
+            let out = strpart(out,0,strlen(out)-1)
+            let outlen = strchars(substitute(copy(out),'%#\S\+#','','g'))
+        endwhile    
+
         let outlen = strchars(substitute(copy(out),'%#\S\+#','','g'))
-    endwhile    
 
-    let outlen = strchars(substitute(copy(out),'%#\S\+#','','g'))
-    let out = repeat(' ', a:avail-outlen-endlen) . out
+        let outlen = outlen + endlen
+        let g:filllen = outlen
+        let g:fill = out
+        let g:fillend = end
+    else
+        let out = g:fill
+        let outlen = g:filllen
+        let end = g:fillend
+    endif
+
+    let curline = line(".")
+    let totline = line("$")
+
+    let available = (a:avail - outlen - 1)
+    let leading = float2nr((curline*1.0 / totline) * available)
+    let trailing = available - (leading)
+
+    " let out = repeat(' ', a:avail-outlen-endlen) . out
+    let out = repeat(' ', leading) . '.' . repeat(' ', trailing) . out
 
     let out .= end
-
     return out
+
 endfunction
 
 
