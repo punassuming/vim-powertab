@@ -844,6 +844,55 @@ if &showtabline < 1
     set showtabline=2   " 2=always
 endif
 
+func! s:Get(arg) dict
+    return a:arg . '=' . get(self, a:arg, '') . ' '
+endfunc
+
+func! s:FilterOut(arg) dict
+    return filter(deepcopy(self), "join(a:arg,'\|') !~ v:key")._all()
+endfunc
+
+func! s:Only(arg) dict
+    let arg = extend(a:arg, filter(keys(self), "v:val =~ '_'"))
+    let temp = filter(deepcopy(self), "join(arg,'\|') =~ v:key")._all()
+    return temp
+endfunc
+
+func! s:GetAll() dict
+    let output = ''
+    for key in keys(self)
+        if key !~ '_'
+            let output .= self._get(key)
+        endif
+    endfor
+    return output
+endfunc
+
+func! HlDict(hl)
+    redir => sel_tab
+    silent execute 'hi ' . a:hl
+    redir END 
+
+    let sel_tab = split(sel_tab, '\n')[0]
+    let sel_tab = substitute(sel_tab, 'xxx', '', '')
+
+    let sel_tab_list = split(sel_tab, '\s\+')
+    let tab_split = map(copy(sel_tab_list),"split(v:val,'=')")[1:]
+
+    let td = {}
+
+    let td._filter = function("s:FilterOut")
+    let td._only = function("s:Only")
+    let td._get = function("s:Get")
+    let td._all = function("s:GetAll")
+
+    for item in tab_split
+        let td[item[0]] = item[1]
+    endfor
+
+    return td
+endfunc
+
 function! TabLineSet_hl_init()
     "
     let greys = [
@@ -889,15 +938,29 @@ function! TabLineSet_hl_init()
 
     " selected
 
-    hi! TabLineSel  term=bold,reverse,None 
-                \   guifg=#F8F8F2 guibg=#CD5907 gui=None ctermbg=166 ctermfg=255
-    hi! TabMod term=None  gui=None guibg=#CD5907 guifg=white
-    hi! TabSepSelLast term=None  guifg=#CD5907 guibg=#1B1E1F ctermbg=234 ctermfg=166
+
+    " TODO grab TabLineSel and TabLineFill Options from colorscheme
+
+    let td = HlDict('TabLineSel')
+    " TabLineSel     
+    " term=bold,reverse 
+    " cterm=bold 
+    " ctermfg=255 
+    " ctermbg=166 
+    " guifg=#F8F8F2 
+    " guibg=#CD5907 
+
+    " Respect colorscheme
+    " hi! TabLineSel  term=bold,reverse,None 
+    "             \   guifg=#F8F8F2 guibg=#CD5907 gui=None ctermbg=166 ctermfg=255
+
+    exec "hi! TabMod term=None  gui=None " . td._filter(['cterm','term','gui'])
+    exec "hi! TabSepSelLast term=None  guifg=".td.guibg." guibg=#1B1E1F ctermbg=234 ctermfg=".td.ctermbg
     hi! TabBufSel term=None gui=None,bold
-    hi! TabExitSel gui=None term=None  guifg=white guibg=#CD5907 ctermbg=166
-    hi! TabWinSel term=None gui=None guifg=white guibg=#F92672
-    hi! TabWinSelLeft term=None gui=None guifg=#F92672 guibg=#CD5907
-    hi! TabWinSelRight term=None gui=None guifg=#F92672 guibg=#CD5907
+    exec "hi! TabExitSel gui=None term=None ". td._only(['guifg','guibg','ctermbg','ctermfg'])
+    hi! TabWinSel term=None gui=None cterm=None guifg=white guibg=#F92672
+    hi! TabWinSelLeft term=None gui=None cterm=None guifg=#F92672 guibg=#CD5907
+    hi! TabWinSelRight term=None gui=None cterm=None guifg=#F92672 guibg=#CD5907
 
     for i in range(0,10)
         " seperators
@@ -905,9 +968,9 @@ function! TabLineSet_hl_init()
         " unselected
         exec "hi! TabSep" . i . " term=None gui=None ctermfg=".greys[i][0]." ctermbg=".greys[i+1][0]." guifg=" . greys[i][1] . " guibg=" . greys[i+1][1]
         " before selected
-        exec "hi! TabSepNextSel" . i . " term=None gui=None ctermfg=".greys[i][0]." ctermbg=166 guifg=" . greys[i][1] . " guibg=#CD5907"
+        exec "hi! TabSepNextSel" . i . " term=None gui=None ctermfg=".greys[i][0]." ".td._get("ctermbg")." guifg=" . greys[i][1] . " ".td._get("guibg")
         " selected tab
-        exec "hi! TabSepSel" . i . " term=None gui=None ctermfg=166 ctermbg=".greys[i+1][0]." guifg=#CD5907 guibg=" . greys[i+1][1]
+        exec "hi! TabSepSel" . i . " term=None gui=None ctermfg=166 ctermbg=".greys[i+1][0]." guifg=".td.guibg." guibg=" . greys[i+1][1]
 
         " unselected line
         exec "hi! TabLine" . i . " term=None ctermfg=" . invgreys[i][0] . " guifg=" . invgreys[i][1] . " ctermbg=" . greys[i][0] . " guibg=" . greys[i][1] . " gui=None"
@@ -919,6 +982,7 @@ function! TabLineSet_hl_init()
     endfor
 
 endfunction
+
 
 call TabLineSet_hl_init()
 set tabline=%!TabLineSet_main()
