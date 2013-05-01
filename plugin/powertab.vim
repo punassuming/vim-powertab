@@ -2,7 +2,7 @@
 " Inspired by: tabline.vim
 " Original Author:       Eric Arnold ( eric_p_arnold@yahoo.com )
 " Refactored by: Rich Alesi
-" Last Change: 2012 Mar 06
+" Last Change: 2013 May 01
 
 " Configuration variables section {{{
 let g:TabLineSet_min_tab_len = 5        " minimum tab width (space padded)
@@ -845,7 +845,19 @@ if &showtabline < 1
 endif
 
 func! s:Get(arg) dict
-    return a:arg . '=' . get(self, a:arg, '') . ' '
+    let out = a:arg . '='
+    if empty(get(self, a:arg, ''))
+        if (a:arg =~'bg')
+            let out .= 'fg'
+        elseif a:arg =~ 'bg'
+            let out .= 'fg' 
+        else
+            let out .= 'None'
+        endif
+    else
+        let out .= get(self, a:arg)
+    endif
+    return out . ' '
 endfunc
 
 func! s:FilterOut(arg) dict
@@ -941,44 +953,40 @@ function! TabLineSet_hl_init()
 
     " TODO grab TabLineSel and TabLineFill Options from colorscheme
 
-    let td = HlDict('TabLineSel')
-    " TabLineSel     
-    " term=bold,reverse 
-    " cterm=bold 
-    " ctermfg=255 
-    " ctermbg=166 
-    " guifg=#F8F8F2 
-    " guibg=#CD5907 
-
     " Respect colorscheme
-    " hi! TabLineSel  term=bold,reverse,None 
-    "             \   guifg=#F8F8F2 guibg=#CD5907 gui=None ctermbg=166 ctermfg=255
+    let td = HlDict('TabLineSel')
 
-    exec "hi! TabMod term=None  gui=None " . td._filter(['cterm','term','gui'])
-    exec "hi! TabSepSelLast term=None  guifg=".td.guibg." guibg=#1B1E1F ctermbg=234 ctermfg=".td.ctermbg
+    if td._all()!~'guibg'
+        hi! TabLineSel  term=bold,reverse,None 
+                    \   guifg=#F8F8F2 guibg=#CD5907 gui=None ctermbg=166 ctermfg=255
+        let td = HlDict('TabLineSel')
+    endif
+
+    silent! exec "hi! TabMod term=None  gui=None " . td._filter(['cterm','term','gui'])
+    silent! exec "hi! TabSepSelLast term=None  guifg=".td.guibg." guibg=#1B1E1F ctermbg=234 ctermfg=".td.ctermbg
     hi! TabBufSel term=None gui=None,bold
-    exec "hi! TabExitSel gui=None term=None ". td._only(['guifg','guibg','ctermbg','ctermfg'])
+    silent! exec "hi! TabExitSel gui=None term=None ". td._only(['guifg','guibg','ctermbg','ctermfg'])
     hi! TabWinSel term=None gui=None cterm=None guifg=white guibg=#F92672
     hi! TabWinSelLeft term=None gui=None cterm=None guifg=#F92672 guibg=#CD5907
     hi! TabWinSelRight term=None gui=None cterm=None guifg=#F92672 guibg=#CD5907
 
     for i in range(0,10)
         " seperators
-        exec "hi! TabSepLast" . i . " term=None gui=None ctermfg=".greys[i][0]." ctermbg=234 guifg=" . greys[i][1] . " guibg=#1B1E1F"
+        silent! exec "hi! TabSepLast" . i . " term=None gui=None ctermfg=".greys[i][0]." ctermbg=234 guifg=" . greys[i][1] . " guibg=#1B1E1F"
         " unselected
-        exec "hi! TabSep" . i . " term=None gui=None ctermfg=".greys[i][0]." ctermbg=".greys[i+1][0]." guifg=" . greys[i][1] . " guibg=" . greys[i+1][1]
+        silent! exec "hi! TabSep" . i . " term=None gui=None ctermfg=".greys[i][0]." ctermbg=".greys[i+1][0]." guifg=" . greys[i][1] . " guibg=" . greys[i+1][1]
         " before selected
-        exec "hi! TabSepNextSel" . i . " term=None gui=None ctermfg=".greys[i][0]." ".td._get("ctermbg")." guifg=" . greys[i][1] . " ".td._get("guibg")
+        silent! exec "hi! TabSepNextSel" . i . " term=None gui=None ctermfg=".greys[i][0]." ".td._get("ctermbg")." guifg=" . greys[i][1] . " ".td._get("guibg")
         " selected tab
-        exec "hi! TabSepSel" . i . " term=None gui=None ctermfg=166 ctermbg=".greys[i+1][0]." guifg=".td.guibg." guibg=" . greys[i+1][1]
+        silent! exec "hi! TabSepSel" . i . " term=None gui=None ctermfg=166 ctermbg=".greys[i+1][0]." guifg=".td.guibg." guibg=" . greys[i+1][1]
 
         " unselected line
-        exec "hi! TabLine" . i . " term=None ctermfg=" . invgreys[i][0] . " guifg=" . invgreys[i][1] . " ctermbg=" . greys[i][0] . " guibg=" . greys[i][1] . " gui=None"
+        silent! exec "hi! TabLine" . i . " term=None ctermfg=" . invgreys[i][0] . " guifg=" . invgreys[i][1] . " ctermbg=" . greys[i][0] . " guibg=" . greys[i][1] . " gui=None"
         " unselected line exit 
-        exec "hi! TabExit" . i . " term=None ctermfg=" . invgreys[i][0] . " guifg=" . invgreys[i][1] . " ctermbg=" . greys[i][0] . " guibg=" . greys[i][1] . " gui=None,bold"
+        silent! exec "hi! TabExit" . i . " term=None ctermfg=" . invgreys[i][0] . " guifg=" . invgreys[i][1] . " ctermbg=" . greys[i][0] . " guibg=" . greys[i][1] . " gui=None,bold"
 
         " modified for unselected
-        exec "hi! TabMod" . i . " term=None guifg=red guibg=" . greys[i][1] . " gui=None ctermbg=" . greys[i][0]
+        silent! exec "hi! TabMod" . i . " term=None guifg=red guibg=" . greys[i][1] . " gui=None ctermbg=" . greys[i][0]
     endfor
 
 endfunction
