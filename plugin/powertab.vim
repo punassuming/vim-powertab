@@ -2,7 +2,7 @@
 " Inspired by: tabline.vim
 " Original Author:       Eric Arnold ( eric_p_arnold@yahoo.com )
 " Refactored by: Rich Alesi
-" Last Change: 2013 May 01
+" Last Change: 2013 Jul 01
 
 " Configuration variables section {{{
 let g:TabLineSet_min_tab_len = 5        " minimum tab width (space padded)
@@ -789,7 +789,7 @@ function! TabLineSetFillerBufferRing( avail, ... )
             let comp_name = tolower(expand('$HOSTNAME'))
         endif
 
-        let comp_name = '(' . comp_name . ')'
+        " let comp_name = '(' . comp_name . ')'
 
         let out =  '%#TabSepLast1#'.nr2char('0x2B82') . '%#TabLine1#'. bufname_full
         let outlen = strchars(substitute(copy(out),'%#[A-Za-z0-9]\+#','','g'))
@@ -797,10 +797,10 @@ function! TabLineSetFillerBufferRing( avail, ... )
         let working_dir = substitute(fnamemodify(getcwd(),':p'), fnamemodify(getcwd(),':p:h:h:h'), '', '')
 
         let end =  '%#TabSep0#' . nr2char('0x2B82') . '%#TabLine0#' . ' '. working_dir 
+        " \. ' (' . bufnr('$') . ') ' .tabpagenr() . '/' . tabpagenr('$') . ' '. comp_name
         " \. ' ' . nr2char('0x2551') . ' '. strftime( '%H:%M' ) . ' '
 
         let endlen = strchars(substitute(end,'%#[A-Za-z0-9]\+#','','g'))
-        " . ' B:' . bufnr('$') . ' T:' . tabpagenr('$') . comp_name
 
         while outlen + endlen > a:avail
             let out = strpart(out,0,strlen(out)-1)
@@ -827,7 +827,7 @@ function! TabLineSetFillerBufferRing( avail, ... )
     let trailing = available - (leading)
 
     " let out = repeat(' ', a:avail-outlen-endlen) . out
-    let out = repeat(' ', leading) . '.' . repeat(' ', trailing) . out
+    let out = repeat('‾', leading) . '―' . repeat('_', trailing) . out
 
     let out .= end
     return out
